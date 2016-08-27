@@ -10,32 +10,43 @@ import random
 # driving_time: tiempo que conduce antes de necesitar carga
 # charge_duration: tiempo que toma cargar la bateria
 
-def proceso(env, name, cpu, driving_time, charge_duration):
+def proceso(env, name, cpu, arrival_time, charge_duration):
     global tiempoCargaTotal
     #global memoriaRam
     # Simulate driving to the BCS
-    yield env.timeout(driving_time)
+    yield env.timeout(arrival_time)
 
     # new proceso, debe esperar a que haya memoria ram
     ocupacionRam = random.randint(1,10)
-    if ram.level > ocupacionRam:
-        print('%s se crea a %s' % (name, env.now))
-        ram.get(ocupacionRam)
-        print('%s ready at %s' % (name, env.now))
-    else :
-        print ('No hay memoria ram, espere')
-    yield env.timeout(1)
+    with ram.get(ocupacionRam) as req:  #pedimos crear un nuevo proceso
+        yield req
+        print('%s pide a %s' % (name, env.now))
+        yield env.timeout(charge_duration)
+        print('%s se crea at %s' % (name, env.now))
     
     # estado ready, esperar a que lo atienda el cpu
     print('%s arriving at %d' % (name, env.now))
-    llegada = env.now #registrar hora llegada
-    with cpu.request() as req:  #pedimos conectarnos al cpu
-        yield req
-        # Charge the battery
-        print('%s proceso inicia a %s' % (name, env.now))
-        yield env.timeout(charge_duration)
-        print('%s leaving the bcs at %s' % (name, env.now))
-        # se hizo release automatico del cargador bcs
+    llegada = env.now #registrar hora llegada a ready
+    operaciones = random.randint(1,10)
+    while operaciones > 0:      
+      with cpu.request() as req:  #pedimos conectarnos al cpu
+          yield req
+          # Charge the battery
+          print('%s proceso inicia a %s' % (name, env.now))
+          yield env.timeout(charge_duration)
+          operaciones = operaciones - 3
+          print('%s leaving the bcs at %s' % (name, env.now))
+          # se sale del cpu
+      io = random.randint(1,2)
+      if io = 1:
+        with io.request() as req:
+          yield req
+          yield env.timeout(1)
+          print ('%s sale de io at %s'%(name, env.now))
+
+          
+    ram.put(ocupacionRam) #terminated, devuelve lo utilizado
+    
     tiempoCarga = env.now - llegada
     print('%s tiempo total espera + carga %s' % (name, tiempoCarga))
     tiempoCargaTotal = tiempoCargaTotal + tiempoCarga
@@ -44,7 +55,8 @@ def proceso(env, name, cpu, driving_time, charge_duration):
 env = simpy.Environment()  #crear ambiente de simulacion
 memoriaRam = 100
 cpu = simpy.Resource(env, capacity=1) #solo hay un cpu
-ram = simpy.Container(env, init=100, capacity=memoriaRam) #capacidad de memoria es 100                                  
+ram = simpy.Container(env, init=100, capacity=memoriaRam) #capacidad de memoria es 100
+io = simpy.Resource(env, capacity=1)
 tiempoCargaTotal=0.0
 nprocesos = 100
 RANDOM_SEED = 42
@@ -62,3 +74,4 @@ env.run()
 promedio = tiempoCargaTotal/nprocesos
 print ('En promedio se tardan %d' %promedio)
 print ('Tiempo total %d' %tiempoCargaTotal)
+
