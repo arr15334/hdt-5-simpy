@@ -1,22 +1,20 @@
 import simpy
 import random
 import math
-#
+
 # simula el funcionamiento de un sistema operativo
 
 # name: identificacion del programa
 # cpu:  cargador de bateria
 # arrival_time: tiempo en el que llega cada proceso, es aleatorio
-# charge_duration: tiempo que toma cargar la bateria
+# tiempo_cpu: tiempo que toma hacer un proceso
 
 def proceso(env, name, cpu, arrival_time, tiempo_cpu):
     global tiempoCargaTotal
     global lista_tiempos
     velocidad_cpu = 3
-    #global memoriaRam
-    # Simulate driving to the BCS
-    yield env.timeout(arrival_time)
-
+    yield env.timeout(arrival_time) #simula llegada aleatoria de procesos
+    llegada = env.now #registrar hora llegada a ready
     # new proceso, debe esperar a que haya memoria ram
     ocupacionRam = random.randint(1,10)
     with ram.get(ocupacionRam) as req:  #pedimos crear un nuevo proceso
@@ -25,14 +23,11 @@ def proceso(env, name, cpu, arrival_time, tiempo_cpu):
         yield env.timeout(tiempo_cpu)
         #print('%s se crea at %s' % (name, env.now))
     
-    # estado ready, esperar a que lo atienda el cpu
-    #print('%s arriving at %d' % (name, env.now))
-    llegada = env.now #registrar hora llegada a ready
+    #estado ready, esperar a que lo atienda el cpu
     operaciones = random.randint(1,10)
     while operaciones > 0:      
       with cpu.request() as req:  #pedimos conectarnos al cpu
           yield req
-          # Charge the battery
           #print('%s proceso inicia a %s' % (name, env.now))
           yield env.timeout(tiempo_cpu)
           operaciones = operaciones - velocidad_cpu
@@ -57,9 +52,9 @@ env = simpy.Environment()  #crear ambiente de simulacion
 memoriaRam = 100
 cpu = simpy.Resource(env, capacity=1) #solo hay un cpu
 ram = simpy.Container(env, init=memoriaRam, capacity=memoriaRam) #capacidad de memoria es 100
-io = simpy.Resource(env, capacity=1)
+io = simpy.Resource(env, capacity=1) #espacio para i/o
 tiempoCargaTotal = 0.0
-nprocesos = 100
+nprocesos = 100 #numero de procesos
 RANDOM_SEED = 42
 random.seed(RANDOM_SEED)
 interval = 10
@@ -68,7 +63,6 @@ lista_tiempos=[]
 for i in range(nprocesos):
     t = random.expovariate(1.0 / interval)
     env.process(proceso(env, 'Proceso %d' % i, cpu, t, 1))
-
 # correr la simulacion
 env.run()
 #calcular promedio
@@ -80,6 +74,7 @@ for i in range(nprocesos):
     var = var + temp
 varianza = var/nprocesos
 devstand = math.sqrt(varianza)
+#imprimir resultados finales
 print ('La desviacion estandar es %f' %devstand)
 print ('En promedio se tardan %d' %promedio)
 print ('Tiempo total %d' %tiempoCargaTotal)
